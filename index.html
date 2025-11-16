@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Authentication</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 450px;
+      width: 100%;
+      padding: 40px;
+    }
+    h2 { text-align: center; color: #1f2937; margin-bottom: 32px; font-size: 28px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; color: #374151; font-weight: 600; margin-bottom: 8px; }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    input:focus { outline: none; border-color: #667eea; }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .toggle { text-align: center; margin-top: 24px; color: #6b7280; }
+    .toggle a { color: #667eea; cursor: pointer; font-weight: 600; text-decoration: none; }
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message.success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+    .message.error { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="form-title">Create Account</h2>
+    <div id="message"></div>
+    <form id="auth-form">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="••••••••" required minlength="6">
+      </div>
+      <button type="submit" id="submit-btn">Sign Up</button>
+    </form>
+    <div class="toggle">
+      <span id="toggle-text">Already have an account?</span>
+      <a id="toggle-link">Login here</a>
+    </div>
+  </div>
+
+  <script>
+    // 🔥 IMPORTANT: Replace with your actual Supabase URL
+    const SUPABASE_URL = 'https://sadnkjdsna.supabase.co';
+    
+    let isSignup = true;
+    const form = document.getElementById('auth-form');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submit-btn');
+    const formTitle = document.getElementById('form-title');
+    const toggleText = document.getElementById('toggle-text');
+    const toggleLink = document.getElementById('toggle-link');
+    const messageDiv = document.getElementById('message');
+    
+    function showMessage(text, type) {
+      messageDiv.innerHTML = '<div class="message ' + type + '">' + text + '</div>';
+    }
+    
+    toggleLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      isSignup = !isSignup;
+      messageDiv.innerHTML = '';
+      
+      if (isSignup) {
+        formTitle.textContent = 'Create Account';
+        submitBtn.textContent = 'Sign Up';
+        toggleText.textContent = 'Already have an account?';
+        toggleLink.textContent = 'Login here';
+      } else {
+        formTitle.textContent = 'Welcome Back';
+        submitBtn.textContent = 'Login';
+        toggleText.textContent = "Don't have an account?";
+        toggleLink.textContent = 'Sign up here';
+      }
+    });
+    
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      
+      if (!email || !password) {
+        showMessage('Please fill in all fields', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Processing...';
+      messageDiv.innerHTML = '';
+
+      try {
+        const endpoint = isSignup ? 'email-signup' : 'email-login';
+        const response = await fetch(SUPABASE_URL + '/functions/v1/' + endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: email, password: password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showMessage(data.message, 'success');
+          
+          if (!isSignup && data.access_token) {
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('user_email', data.user.email);
+            
+            setTimeout(function() {
+              showMessage('Login successful! Redirecting...', 'success');
+              // Redirect to dashboard or home page
+              // window.location.href = '/dashboard.html';
+            }, 1500);
+          }
+          
+          form.reset();
+        } else {
+          showMessage(data.error || 'An error occurred', 'error');
+        }
+      } catch (error) {
+        showMessage('Network error: ' + error.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isSignup ? 'Sign Up' : 'Login';
+      }
+    });
+  </script>
+</body>
+</html>
