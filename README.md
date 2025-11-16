@@ -9,5 +9,4 @@ A simple email authentication system using Supabase and GitHub Pages.
 3. Configure Supabase settings
 
 ## Live Demo
-
-[Your GitHub Pages URL]
+https://rajessrao.github.io/email-auth-app/
